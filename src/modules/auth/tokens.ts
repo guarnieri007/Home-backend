@@ -7,7 +7,7 @@ export const ACCESS_TOKEN_TTL_SECONDS = 2 * 60
 export const REFRESH_TOKEN_TTL_SECONDS = 14 * 24 * 60 * 60
 
 const secret = new TextEncoder().encode(env.JWT_SECRET)
-const ISSUER = 'firehome'
+const ISSUER = 'home'
 
 export type AccessTokenPayload = { cd_user: number }
 

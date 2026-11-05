@@ -1,6 +1,6 @@
 import { and, eq, isNull, lt } from 'drizzle-orm'
 import { db, type Executor } from '../../db/index.ts'
-import { credentials, refresh_tokens } from '../../db/schema.ts'
+import { credentials, refresh_tokens, reset_password_tokens } from '../../db/schema.ts'
 
 export const authRepository = {
   async findCredentials(cd_user: number, executor: Executor = db) {
@@ -45,4 +45,27 @@ export const authRepository = {
       .delete(refresh_tokens)
       .where(and(eq(refresh_tokens.cd_user, cd_user), lt(refresh_tokens.expires_at, new Date())))
   },
+
+  async resetTokenHash(cd_user: number, token_hash: string, expires_at: Date, executor: Executor = db) {
+    /** remove os hashes anteriores do usuário */
+    await executor
+      .delete(reset_password_tokens)
+      .where(eq(reset_password_tokens.cd_user, cd_user));
+
+    /** insere o novo hash */
+    await executor
+      .insert(reset_password_tokens)
+      .values({ cd_user, token_hash, expires_at, revoked_at: null });
+  },
+
+  async findResetToken(token_hash: string, executor: Executor = db) {
+    return executor.query.reset_password_tokens.findFirst({ where: eq(reset_password_tokens.token_hash, token_hash) })
+  },
+
+  async revokeResetToken(cd_reset_token: number, executor: Executor = db): Promise<boolean> {
+    await executor
+      .delete(reset_password_tokens)
+      .where(and(eq(reset_password_tokens.cd_reset_password_token, cd_reset_token), isNull(reset_password_tokens.revoked_at)))
+    return true
+  }
 }

@@ -84,10 +84,27 @@ export const refresh_tokens = sqliteTable('refresh_tokens', {
   index('refresh_tokens_user_id_idx').on(table.cd_user),
 ])
 
+export const reset_password_tokens = sqliteTable('reset_password_tokens', {
+  cd_reset_password_token: integer('cd_reset_password_token').primaryKey({ autoIncrement: true }),
+  cd_user: integer('cd_user')
+    .notNull()
+    .references(() => users.cd_user, { onDelete: 'cascade' }),
+  // Só o hash SHA-256 é salvo; o token em si fica apenas com o cliente
+  token_hash: text('token_hash').notNull().unique(),
+  expires_at: integer('expires_at', { mode: 'timestamp' }).notNull(),
+  revoked_at: integer('revoked_at', { mode: 'timestamp' }),
+  created_at: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+}, (table) => [
+  index('reset_password_tokens_user_id_idx').on(table.cd_user),
+])
+
 export const usersRelations = relations(users, ({ one, many }) => ({
   profiles: many(profiles),
   credentials: one(credentials),
   refresh_tokens: many(refresh_tokens),
+  reset_password_tokens: many(reset_password_tokens),
 }))
 
 export const profilesRelations = relations(profiles, ({ one, many }) => ({
@@ -101,6 +118,10 @@ export const favoritesRelations = relations(favorites, ({ one }) => ({
 
 export const credentialsRelations = relations(credentials, ({ one }) => ({
   user: one(users, { fields: [credentials.cd_user], references: [users.cd_user] }),
+}))
+
+export const resetPasswordTokensRelations = relations(reset_password_tokens, ({ one }) => ({
+  user: one(users, { fields: [reset_password_tokens.cd_user], references: [users.cd_user] }),
 }))
 
 export const refreshTokensRelations = relations(refresh_tokens, ({ one }) => ({

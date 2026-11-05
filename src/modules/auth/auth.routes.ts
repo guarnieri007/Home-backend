@@ -1,5 +1,5 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox'
-import { ChangePasswordBody, LoginBody, RefreshTokenBody, TokensResponse } from './auth.schemas.ts'
+import { ChangePasswordBody, CheckResetTokenBody, ForgotPasswordBody, LoginBody, RefreshTokenBody, ResetPasswordBody, TokensResponse } from './auth.schemas.ts'
 import { authService } from './auth.service.ts'
 import { authenticate } from './authenticate.ts'
 
@@ -35,6 +35,28 @@ export const authRoutes: FastifyPluginAsyncTypebox = async (app) => {
   }, async (request, reply) => {
     const { current_password, new_password } = request.body
     await authService.changePassword(request.user.cd_user, current_password, new_password)
+    return reply.status(204).send()
+  })
+
+  app.post('/forgot-password', {
+    config: { rateLimit },
+    schema: { body: ForgotPasswordBody },
+  }, async (request) => {
+    return await authService.forgotPassword(request.body.email.trim().toLowerCase())
+  })
+
+  app.post('/check-reset-token', {
+    config: { rateLimit },
+    schema: { body: CheckResetTokenBody },
+  }, async (request) => {
+    return await authService.checkResetToken(request.body.token)
+  })
+
+  app.post('/reset-password', {
+    config: { rateLimit },
+    schema: { body: ResetPasswordBody },
+  }, async (request, reply) => {
+    await authService.changePasswordWithToken(request.body.token, request.body.newPassword)
     return reply.status(204).send()
   })
 }

@@ -8,6 +8,13 @@
       "when": 1793061709914,
       "tag": "0000_inicial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793709866605,
+      "tag": "0001_magical_corsair",
+      "breakpoints": true
     }
   ]
 }

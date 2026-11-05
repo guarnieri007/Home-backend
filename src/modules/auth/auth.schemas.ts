@@ -23,3 +23,16 @@ export const TokensResponse = Type.Object({
   refresh_token: Type.String(),
   refresh_expires_in: Type.Integer({ description: 'Segundos até o refresh token expirar' }),
 })
+
+export const ForgotPasswordBody = Type.Object({
+  email: Type.String({ format: 'email', maxLength: 254 }),
+}, { additionalProperties: false })
+
+export const CheckResetTokenBody = Type.Object({
+  token: Type.String({ minLength: 1, maxLength: 256 }),
+}, { additionalProperties: false })
+
+export const ResetPasswordBody = Type.Object({
+  token: Type.String({ minLength: 1, maxLength: 256 }),
+  newPassword: Password,
+}, { additionalProperties: false })

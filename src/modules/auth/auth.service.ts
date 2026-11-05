@@ -1,5 +1,6 @@
 import { db, type Executor } from '../../db/index.ts'
-import { unauthorized } from '../../shared/errors.ts'
+import { enviarEmail } from '../../shared/email.ts'
+import { badRequest, unauthorized } from '../../shared/errors.ts'
 import { usersRepository } from '../users/users.repository.ts'
 import { authRepository } from './auth.repository.ts'
 import { getDummyHash, hashPassword, verifyPassword } from './password.ts'
@@ -83,4 +84,51 @@ export const authService = {
       await authRepository.revokeAllRefreshTokens(cd_user, tx)
     })
   },
+
+  async changePasswordWithToken(token: string, new_password: string) {
+    const stored = await authRepository.findResetToken(hashRefreshToken(token))
+    if (!stored || stored.expires_at.getTime() <= Date.now()) {
+      throw badRequest('Token de redefinição de senha inválido ou expirado', 'INVALID_RESET_TOKEN')
+    }
+
+    const password_hash = await hashPassword(new_password)
+    await db.transaction(async (tx) => {
+      await authRepository.updatePasswordHash(stored.cd_user, password_hash, tx)
+      // Encerra as sessões abertas em outros dispositivos
+      await authRepository.revokeAllRefreshTokens(stored.cd_user, tx)
+      // Revoga o token de redefinição de senha usado
+      await authRepository.revokeResetToken(stored.cd_reset_password_token, tx)
+    })
+  },
+
+  async forgotPassword(email: string) {
+    const user = await usersRepository.findByEmail(email)
+    if (!user) return // Não vaza se o email existe ou não
+
+    const expires_in = new Date(Date.now() + 45 * 60 * 1000); // 45 minutos, mesmo valor usado no front-end para expiração do link
+    const token = generateRefreshToken()
+    const tokenHash = hashRefreshToken(token)
+    const link = `${process.env.APP_URL}/redefinir-senha?token=${token}`;
+
+    await authRepository.resetTokenHash(user.cd_user, tokenHash, expires_in)
+    console.log(`Redefinição de senha para ${user.email}: ${link}`) // Para testes, loga o link no console
+
+    await enviarEmail({
+      para: user.email,
+      assunto: 'Redefinição de senha home',
+      texto: `Para redefinir sua senha, acesse: ${link}\nO link expira em 45 minutos.`,
+      html: `<p>Para redefinir sua senha, <a href="${link}">clique aqui</a>.</p>
+           <p>O link expira em 45 minutos. Se não foi você, ignore este email.</p>`,
+    });
+    return { message: 'Se o email existir, um link de redefinição de senha foi enviado.' }
+  },
+
+  async checkResetToken(token: string) {
+    const stored = await authRepository.findResetToken(hashRefreshToken(token))
+    console.log('checkResetToken', { token, stored })
+    if (!stored || stored.expires_at.getTime() <= Date.now()) {
+      return { message: false }
+    }
+    return { message: true }
+  }
 }
